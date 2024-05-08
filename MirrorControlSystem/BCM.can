@@ -1,0 +1,155 @@
+﻿/*@!Encoding:65001*/
+includes
+{
+  
+}
+
+variables
+{
+  ///Tx Messages
+  message CAN1.BCM_Mirror_Control BCM_Mirror_Control_msg;
+  message CAN1.BCM_NM_Message BCM_NM_Message_msg;
+  
+  ///Rx Messages
+  message CAN1.Mirror_NM_Message Mirror_NM_Message_msg;
+  message CAN1.Mirror_Status Mirror_Status_msg;
+  
+  ///Timers
+  msTimer BCM_NM_signal;
+  msTimer WAIT_SLEEP_ACK;
+  msTimer WAIT_WAKEUP_ACK;
+  msTimer Mirror_Control;
+  
+  ///Const
+  const BCM_NM_CYCLIC = 200;
+  const WAIT_SLEEP_ACK_CYCLIC = 50000;
+
+  const WAIT_WAKEUP_ACK_CYCLIC = 50;
+  const MIRROR_CONTROL_CYCLIC = 200;
+}
+
+////////////////////////////////////ON MESSAGE ////////////////////////////////////
+
+///Received Messages
+on message Mirror_NM_Message
+{
+  Mirror_NM_Message_msg=this;
+}
+
+on message Mirror_Status
+{
+  Mirror_Status_msg = this;
+}
+
+////////////////////////////////////ON TIMER ////////////////////////////////////
+
+
+on timer BCM_NM_signal
+{
+  ///Send Signal Every 200ms
+  output(BCM_NM_Message_msg);
+  setTimer(BCM_NM_signal,BCM_NM_CYCLIC);
+}
+
+on timer WAIT_SLEEP_ACK
+{
+  ///receive sleep ack
+  if(Mirror_NM_Message_msg.Mirror_NM_Sleep == 1)
+  {
+    cancelTimer(BCM_NM_signal);
+    cancelTimer(Mirror_Control);
+  }
+  else
+  {
+    ///wait 50 sec for sleep ack
+    setTimer(WAIT_SLEEP_ACK,WAIT_SLEEP_ACK_CYCLIC);
+  }
+
+}
+
+on timer WAIT_WAKEUP_ACK
+{
+  if(Mirror_NM_Message_msg.Mirror_NM_Awake == 1)
+  {
+    output(BCM_Mirror_Control_msg);
+    setTimer(BCM_NM_signal,BCM_NM_CYCLIC);
+    setTimer(Mirror_Control,MIRROR_CONTROL_CYCLIC);
+  }
+}
+
+on timer Mirror_Control
+{
+  output(BCM_Mirror_Control_msg);
+  setTimer(Mirror_Control,MIRROR_CONTROL_CYCLIC);
+}
+
+////////////////////////////////////ON SYSVAR ////////////////////////////////////
+on sysvar Switches::Klima15
+{
+  if(@Switches::Klima15 == 1)
+  {
+    BCM_NM_Message_msg.BCM_NM_Wakeup = 1;
+    BCM_NM_Message_msg.BCM_NM_Sleep = 0;
+    output(BCM_NM_Message_msg);
+    setTimer(BCM_NM_signal,BCM_NM_CYCLIC);
+    setTimer(WAIT_WAKEUP_ACK,WAIT_WAKEUP_ACK_CYCLIC);
+    }
+  else
+  {
+    BCM_Mirror_Control_msg.close = 1;
+    BCM_NM_Message_msg.BCM_NM_Wakeup = 0;
+    BCM_NM_Message_msg.BCM_NM_Sleep = 1;
+    output(BCM_NM_Message_msg);
+    
+    //////??
+    //cancelTimer(BCM_NM_signal);
+    setTimer(WAIT_SLEEP_ACK,WAIT_SLEEP_ACK_CYCLIC);
+  }
+}
+
+
+on sysvar Switches::close
+{
+  BCM_Mirror_Control_msg.open=0;
+  BCM_Mirror_Control_msg.close = @Switches::close;
+}
+
+on sysvar Switches::open
+{
+  BCM_Mirror_Control_msg.close=0;
+  BCM_Mirror_Control_msg.open = @Switches::open;
+}
+
+on sysvar Switches::L_move_down
+{
+  if(Mirror_Status_msg.open_position == 90)
+  {
+    BCM_Mirror_Control_msg.L_move_down = @Switches::L_move_down;
+  }
+}
+
+on sysvar Switches::L_move_up
+{
+  if(Mirror_Status_msg.open_position == 90)
+  {
+    BCM_Mirror_Control_msg.L_move_up = @Switches::L_move_up;
+  }
+}
+
+on sysvar Switches::R_move_down
+{
+  if(Mirror_Status_msg.open_position == 90)
+  {
+    BCM_Mirror_Control_msg.R_move_down = @Switches::R_move_down;
+  }
+
+}
+
+on sysvar Switches::R_move_up
+{
+  if(Mirror_Status_msg.open_position == 90)
+  {
+    BCM_Mirror_Control_msg.R__move_up = @ Switches::R_move_up;
+  }
+
+}

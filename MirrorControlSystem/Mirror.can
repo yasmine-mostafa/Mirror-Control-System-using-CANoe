@@ -1,0 +1,207 @@
+﻿/*@!Encoding:65001*/
+includes
+{
+  
+}
+
+variables
+{
+  ////Tx messages
+  message CAN1.Mirror_NM_Message Mirror_NM_Message_msg;
+  message CAN1.Mirror_Status Mirror_Status_msg;
+  
+  ///Rx_messages
+  message CAN1.BCM_Mirror_Control BCM_Mirror_Control_msg;
+  message CAN1.BCM_NM_Message BCM_NM_Message_msg;
+  
+  msTimer Mirror_NM;
+  msTimer Mirror_Control;
+  msTimer Mirror_Sleep;
+  msTimer Mirror_L_Move_Down;
+  msTimer Mirror_L_Move_Up;
+  msTimer Mirror_R_Move_Up;
+  msTimer Mirror_R_Move_down;
+  msTimer Mirror_Open;
+  msTimer Mirror_Close;
+  
+  const MIRROR_NM_CYCLIC = 50;
+  const MIRROR_CONTROL_CYCLIC = 250;
+  const MIRROR_SLEEP_CYCLIC = 50;
+  const MIRROR_L_MOVE_DOWN_TIME = 50;
+   const MIRROR_L_MOVE_UP_TIME = 50;
+   const MIRROR_R_MOVE_DOWN_TIME = 50;
+   const MIRROR_R_MOVE_UP_TIME = 50;
+  const MIRROR_OPEN_TIME = 500;
+  //const MIRROR_OPEN_TIME = 50;
+  //const MIRROR_CLOSE_TIME = 50;
+  const MIRROR_CLOSE_TIME = 500;
+}
+
+on message BCM_Mirror_Control
+{
+  BCM_Mirror_Control_msg = this;
+}
+
+on message BCM_NM_Message
+{
+  BCM_NM_Message_msg = this;
+}
+
+
+on timer Mirror_NM
+{
+  output(Mirror_NM_Message_msg);
+  setTimer(Mirror_NM,MIRROR_NM_CYCLIC);
+}
+
+on timer Mirror_Control
+{
+  output(Mirror_Status_msg);
+  setTimer(Mirror_Control,MIRROR_CONTROL_CYCLIC);
+}
+
+on timer Mirror_Sleep
+{
+
+  //output(Mirror_NM_Message_msg);
+  
+  if(Mirror_Status_msg.open_position == 0)
+  {
+    cancelTimer(Mirror_NM);
+    cancelTimer(Mirror_Control);
+    Mirror_NM_Message_msg.Mirror_NM_Awake=0;
+    Mirror_NM_Message_msg.Mirror_NM_Sleep=1;
+    output(Mirror_NM_Message_msg);
+    //setTimer(Mirror_Sleep,MIRROR_SLEEP_CYCLIC);
+  }
+  else
+  {
+    setTimer(Mirror_Sleep,MIRROR_SLEEP_CYCLIC);
+  }
+
+}
+
+on timer Mirror_L_Move_Down
+{
+  if(Mirror_Status_msg.L_position > 0)
+  {
+    Mirror_Status_msg.L_position--;
+  }
+}
+
+on timer Mirror_R_Move_down
+{
+  if(Mirror_Status_msg.R_position > 0)
+  {
+   Mirror_Status_msg.R_position--;
+  }
+
+}
+
+on timer Mirror_L_Move_Up
+{
+  if(Mirror_Status_msg.R_position < 180)
+  {
+    Mirror_Status_msg.R_position++;
+  }
+}
+
+on timer Mirror_R_Move_Up
+{
+  if(Mirror_Status_msg.R_position < 180)
+  {
+    Mirror_Status_msg.R_position++;
+  }
+}
+
+on timer Mirror_Open
+{
+  if(  Mirror_Status_msg.open_position != 90)
+  {
+    Mirror_Status_msg.open_position++;
+    setTimer(Mirror_Open,MIRROR_OPEN_TIME);
+  }
+}
+
+on timer Mirror_Close
+{
+  if(  Mirror_Status_msg.open_position != 0)
+  {
+    Mirror_Status_msg.open_position--;
+    setTimer(Mirror_Close,MIRROR_CLOSE_TIME);
+  }
+  
+}
+
+///////////////////////////////////////
+on signal BCM_NM_Message::BCM_NM_Wakeup
+{
+  if(this == 1)
+  {
+    Mirror_NM_Message_msg.Mirror_NM_Awake=1;
+    Mirror_NM_Message_msg.Mirror_NM_Sleep=0;
+    output(Mirror_NM_Message_msg);
+    setTimer(Mirror_NM,MIRROR_NM_CYCLIC);
+    setTimer(Mirror_Control,MIRROR_CONTROL_CYCLIC);
+  }
+}
+
+on signal BCM_NM_Message::BCM_NM_Sleep
+{
+  if(this == 1)
+  {
+  //  Mirror_NM_Message_msg.Mirror_NM_Awake=0;
+   // Mirror_NM_Message_msg.Mirror_NM_Sleep=1;
+    setTimer(Mirror_Sleep,MIRROR_SLEEP_CYCLIC);
+  }
+}
+
+on signal BCM_Mirror_Control::L_move_down
+{
+  if(this == 1)
+  {
+    setTimer(Mirror_L_Move_Down,MIRROR_L_MOVE_DOWN_TIME);
+  }
+}
+
+on signal BCM_Mirror_Control::L_move_up
+{
+  if(this == 1)
+  {
+    setTimer(Mirror_L_Move_Up,MIRROR_L_MOVE_UP_TIME);
+  }
+}
+
+on signal BCM_Mirror_Control::R__move_up
+{
+  if(this == 1)
+  {
+    setTimer(Mirror_R_Move_Up,MIRROR_R_MOVE_UP_TIME);
+  }
+}
+
+on signal BCM_Mirror_Control::R_move_down
+{
+  if(this == 1)
+  {
+    setTimer(Mirror_R_Move_down,MIRROR_R_MOVE_DOWN_TIME);
+  }
+}
+
+on signal BCM_Mirror_Control::open
+{
+  if(this == 1)
+  {
+    setTimer(Mirror_Open,MIRROR_OPEN_TIME);
+  }
+  
+}
+
+on signal BCM_Mirror_Control::close
+{
+  if(this == 1)
+  {
+    setTimer(Mirror_Close,MIRROR_CLOSE_TIME);
+  }
+  
+}
